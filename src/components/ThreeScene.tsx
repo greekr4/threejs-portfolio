@@ -34,7 +34,7 @@ const projects: Project[] = [
     id: 1,
     title: "프로젝트1",
     description: "프로젝트1 설명",
-    position: [-10, 4, 0],
+    position: [-6, 4, 0],
     color: "#4568dc",
     image: "images/1.png", // 경로 수정
   },
@@ -42,7 +42,7 @@ const projects: Project[] = [
     id: 2,
     title: "프로젝트2",
     description: "프로젝트2 설명",
-    position: [10, 4, 0],
+    position: [6, 4, 0],
     color: "#b06ab3",
     image: "images/2.png", // 경로 수정
   },
@@ -111,6 +111,12 @@ function PhoneModel({
   const originalPos = useRef<THREE.Vector3 | null>(null);
   const { scene } = useGLTF("/gltf/iphone17/scene.gltf");
   const clonedScene = useMemo(() => scene.clone(), [scene]);
+
+  // 회전 상태 저장
+  const rotationState = useRef({
+    y: 0,
+    initialized: false,
+  });
 
   // 텍스처 상태 관리
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
@@ -450,8 +456,14 @@ function PhoneModel({
   // 자동 회전 애니메이션
   useFrame((state, delta) => {
     if (phoneRef.current) {
-      // Y축을 중심으로 천천히 회전
-      phoneRef.current.rotation.y += delta * 0.5;
+      // 초기화 상태 설정
+      if (!rotationState.current.initialized) {
+        rotationState.current.initialized = true;
+      }
+
+      // Y축을 중심으로 천천히 회전 (저장된 회전값 사용)
+      rotationState.current.y += delta * 0.5;
+      phoneRef.current.rotation.y = rotationState.current.y;
 
       // 약간 위아래로 떠오르는 애니메이션
       const hoverOffset = Math.sin(state.clock.elapsedTime) * 1;
@@ -512,6 +524,12 @@ function IMacModel({
   const { scene } = useGLTF("/gltf/imac/scene.gltf");
   const clonedScene = useMemo(() => scene.clone(), [scene]);
 
+  // 회전 상태 저장
+  const rotationState = useRef({
+    y: 0,
+    initialized: false,
+  });
+
   // 초기 위치 설정
   useEffect(() => {
     if (phoneRef.current) {
@@ -523,8 +541,14 @@ function IMacModel({
   // 자동 회전 애니메이션
   useFrame((state, delta) => {
     if (phoneRef.current) {
-      // Y축을 중심으로 천천히 회전
-      phoneRef.current.rotation.y += delta * 0.5;
+      // 초기화 상태 설정
+      if (!rotationState.current.initialized) {
+        rotationState.current.initialized = true;
+      }
+
+      // Y축을 중심으로 천천히 회전 (저장된 회전값 사용)
+      rotationState.current.y += delta * 0.5;
+      phoneRef.current.rotation.y = rotationState.current.y;
 
       // 약간 위아래로 떠오르는 애니메이션
       const hoverOffset = Math.sin(state.clock.elapsedTime) * 1;
@@ -590,7 +614,7 @@ function KeyboardGuide() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setVisible(false);
-    }, 0); // 10초 후 가이드 숨기기
+    }, 5000); // 10초 후 가이드 숨기기
 
     const handleKeyDown = () => {
       setVisible(false); // 아무 키나 누르면 가이드 숨기기
@@ -619,7 +643,7 @@ function KeyboardGuide() {
           width: "300px",
         }}
       >
-        <h3 style={{ margin: "0 0 15px 0" }}>Player 조종하기</h3>
+        <h3 style={{ margin: "0 0 15px 0" }}>조종하기</h3>
         <div
           style={{
             display: "flex",
@@ -687,7 +711,7 @@ function KeyboardGuide() {
           </div>
         </div>
         <p style={{ margin: "15px 0 0 0", fontSize: "14px" }}>
-          방향키로 Player를 조종하여 프로젝트를 탐색하세요
+          방향키로 조종하여 프로젝트를 탐색하세요
         </p>
       </div>
     </Html>
@@ -740,8 +764,188 @@ function Particles() {
   return <points ref={particlesRef} geometry={geometry} material={material} />;
 }
 
+// 모바일 방향키 컴포넌트
+function MobileControls({
+  setKeys,
+}: {
+  setKeys: React.Dispatch<
+    React.SetStateAction<{
+      ArrowUp: boolean;
+      ArrowDown: boolean;
+      ArrowLeft: boolean;
+      ArrowRight: boolean;
+    }>
+  >;
+}) {
+  const handleTouchStart = (direction: string, e: React.TouchEvent) => {
+    e.preventDefault(); // 기본 동작 방지
+    setKeys((prev) => ({ ...prev, [direction]: true }));
+  };
+
+  const handleTouchEnd = (direction: string, e: React.TouchEvent) => {
+    e.preventDefault(); // 기본 동작 방지
+    setKeys((prev) => ({ ...prev, [direction]: false }));
+  };
+
+  // 드래그 방지 핸들러
+  const preventDrag = (e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+
+  // 꾹 누름(long press) 방지
+  const preventLongPress = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+
+  // 공통 버튼 스타일
+  const buttonStyle: React.CSSProperties = {
+    width: "60px",
+    height: "60px",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    border: "2px solid white",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
+    color: "white",
+    userSelect: "none",
+    touchAction: "none",
+    cursor: "pointer",
+    WebkitTouchCallout: "none", // iOS에서 꾹 누를 때 메뉴 방지
+    WebkitUserSelect: "none", // 텍스트 선택 방지 (Safari)
+    MozUserSelect: "none", // Firefox
+    msUserSelect: "none", // IE/Edge
+    outline: "none", // 포커스 아웃라인 제거
+    WebkitTapHighlightColor: "transparent", // 탭 하이라이트 제거
+  };
+
+  // 화살표 텍스트 스타일
+  const arrowStyle: React.CSSProperties = {
+    pointerEvents: "none",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none",
+    WebkitTouchCallout: "none",
+  };
+
+  // 컨테이너 스타일
+  const containerStyle: React.CSSProperties = {
+    position: "absolute",
+    bottom: "80px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    zIndex: 1000,
+    touchAction: "none",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none",
+    WebkitTouchCallout: "none",
+  };
+
+  useEffect(() => {
+    // 전체 문서에 텍스트 선택 방지 스타일 추가
+    const style = document.createElement("style");
+    style.innerHTML = `
+      .mobile-control-button {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        touch-action: none;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  return (
+    <div
+      style={containerStyle}
+      onTouchMove={preventDrag}
+      onDragStart={preventDrag}
+      onContextMenu={preventLongPress}
+      className="mobile-control-button"
+    >
+      <button
+        style={{ ...buttonStyle, marginBottom: "10px" }}
+        onTouchStart={(e) => handleTouchStart("ArrowUp", e)}
+        onTouchEnd={(e) => handleTouchEnd("ArrowUp", e)}
+        onTouchMove={preventDrag}
+        onDragStart={preventDrag}
+        onContextMenu={preventLongPress}
+        draggable={false}
+        className="mobile-control-button"
+      >
+        <div style={arrowStyle}>↑</div>
+      </button>
+      <div style={{ display: "flex", gap: "10px" }}>
+        <button
+          style={buttonStyle}
+          onTouchStart={(e) => handleTouchStart("ArrowLeft", e)}
+          onTouchEnd={(e) => handleTouchEnd("ArrowLeft", e)}
+          onTouchMove={preventDrag}
+          onDragStart={preventDrag}
+          onContextMenu={preventLongPress}
+          draggable={false}
+          className="mobile-control-button"
+        >
+          <div style={arrowStyle}>←</div>
+        </button>
+        <button
+          style={buttonStyle}
+          onTouchStart={(e) => handleTouchStart("ArrowDown", e)}
+          onTouchEnd={(e) => handleTouchEnd("ArrowDown", e)}
+          onTouchMove={preventDrag}
+          onDragStart={preventDrag}
+          onContextMenu={preventLongPress}
+          draggable={false}
+          className="mobile-control-button"
+        >
+          <div style={arrowStyle}>↓</div>
+        </button>
+        <button
+          style={buttonStyle}
+          onTouchStart={(e) => handleTouchStart("ArrowRight", e)}
+          onTouchEnd={(e) => handleTouchEnd("ArrowRight", e)}
+          onTouchMove={preventDrag}
+          onDragStart={preventDrag}
+          onContextMenu={preventLongPress}
+          draggable={false}
+          className="mobile-control-button"
+        >
+          <div style={arrowStyle}>→</div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Player 컨트롤러 컴포넌트
-function PlayerController() {
+function PlayerController({
+  externalKeys,
+}: {
+  externalKeys?: {
+    ArrowUp: boolean;
+    ArrowDown: boolean;
+    ArrowLeft: boolean;
+    ArrowRight: boolean;
+  };
+}) {
   // Player 위치 및 회전 상태
   const [position, setPosition] = useState<[number, number, number]>([
     0, 3, 10,
@@ -759,8 +963,14 @@ function PlayerController() {
     ArrowRight: false,
   });
 
+  // 초기화 상태 추적
+  const isInitialized = useRef(false);
+
   // 키보드 이벤트 처리
   useEffect(() => {
+    // 컴포넌트가 마운트될 때 초기화 완료로 표시
+    isInitialized.current = true;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key in keys) {
         setKeys((prev) => ({ ...prev, [e.key]: true }));
@@ -782,18 +992,32 @@ function PlayerController() {
     };
   }, []);
 
+  // 외부 키 상태 병합
+  const mergedKeys = useMemo(() => {
+    if (!externalKeys) return keys;
+    return {
+      ArrowUp: keys.ArrowUp || externalKeys.ArrowUp,
+      ArrowDown: keys.ArrowDown || externalKeys.ArrowDown,
+      ArrowLeft: keys.ArrowLeft || externalKeys.ArrowLeft,
+      ArrowRight: keys.ArrowRight || externalKeys.ArrowRight,
+    };
+  }, [keys, externalKeys]);
+
   // Player 움직임 처리
   useFrame((state, delta) => {
+    // 초기화되지 않은 경우 아무 작업도 수행하지 않음
+    if (!isInitialized.current) return;
+
     // 속도 계산
     const newVelocity: [number, number, number] = [...velocity];
     const speed = 0.5 * delta; // 속도 감소
     const drag = 0.98; // 항력 감소로 더 부드럽게 이동
 
     // 방향키에 따른 속도 변경 - 방향 수정
-    if (keys.ArrowUp) newVelocity[2] -= speed;
-    if (keys.ArrowDown) newVelocity[2] += speed;
-    if (keys.ArrowLeft) newVelocity[0] -= speed;
-    if (keys.ArrowRight) newVelocity[0] += speed;
+    if (mergedKeys.ArrowUp) newVelocity[2] -= speed;
+    if (mergedKeys.ArrowDown) newVelocity[2] += speed;
+    if (mergedKeys.ArrowLeft) newVelocity[0] -= speed;
+    if (mergedKeys.ArrowRight) newVelocity[0] += speed;
 
     // 항력 적용 (속도 감소)
     newVelocity[0] *= drag;
@@ -822,7 +1046,7 @@ function PlayerController() {
     const newRotation: [number, number, number] = [
       rotation[0] + (targetRotationX - rotation[0]) * rotationSpeed,
       Math.PI +
-        (keys.ArrowLeft ? 0.03 : keys.ArrowRight ? -0.03 : 0) *
+        (mergedKeys.ArrowLeft ? 0.03 : mergedKeys.ArrowRight ? -0.03 : 0) *
           rotationSpeed *
           10, // 회전 기준값 수정
       rotation[2] + (targetRotationZ - rotation[2]) * rotationSpeed,
@@ -895,7 +1119,16 @@ function WebGLErrorHandler() {
 }
 
 // 씬 컴포넌트
-function Scene() {
+function Scene({
+  externalKeys,
+}: {
+  externalKeys?: {
+    ArrowUp: boolean;
+    ArrowDown: boolean;
+    ArrowLeft: boolean;
+    ArrowRight: boolean;
+  };
+}) {
   return (
     <>
       <WebGLErrorHandler />
@@ -906,7 +1139,7 @@ function Scene() {
       <directionalLight position={[0, 0, 0]} intensity={0.8} castShadow />
 
       <Suspense fallback={null}>
-        <PlayerController />
+        <PlayerController externalKeys={externalKeys} />
         <Particles />
         <Floor />
         <Environment preset="sunset" />
@@ -924,33 +1157,87 @@ function Scene() {
 export default function ThreeScene() {
   // 키보드 포커스를 위한 캔버스 클릭 핸들러
   const canvasRef = useRef<HTMLDivElement>(null);
+  // 모바일 기기 감지
+  const [isMobile, setIsMobile] = useState(false);
+  // 키 상태 관리 (모바일 컨트롤용)
+  const [keys, setKeys] = useState({
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false,
+  });
+
+  // 클릭/터치 이벤트 처리를 위한 참조
+  const clickHandled = useRef(false);
 
   useEffect(() => {
+    // 모바일 기기 감지
+    const checkMobile = () => {
+      setIsMobile(
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
+      );
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
     // 컴포넌트 마운트 시 자동으로 포커스
     if (canvasRef.current) {
       canvasRef.current.focus();
     }
 
-    // 문서 클릭 시 캔버스에 포커스
-    const handleDocumentClick = () => {
-      if (canvasRef.current) {
+    // 문서 클릭 시 캔버스에 포커스 (이벤트 전파 방지)
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (canvasRef.current && !clickHandled.current) {
+        e.preventDefault(); // 이벤트 기본 동작 방지
         canvasRef.current.focus();
+        clickHandled.current = true;
+        // 짧은 시간 후 플래그 리셋
+        setTimeout(() => {
+          clickHandled.current = false;
+        }, 100);
       }
     };
 
+    // 텍스트 선택 방지
+    const preventSelection = (e: Event) => {
+      e.preventDefault();
+    };
+
     document.addEventListener("click", handleDocumentClick);
+    document.addEventListener("touchstart", handleDocumentClick as any);
+    document.addEventListener("selectstart", preventSelection);
 
     return () => {
       document.removeEventListener("click", handleDocumentClick);
+      document.removeEventListener("touchstart", handleDocumentClick as any);
+      document.removeEventListener("selectstart", preventSelection);
+      window.removeEventListener("resize", checkMobile);
     };
   }, []);
+
+  // 클릭 이벤트 핸들러 (이벤트 전파 방지)
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    clickHandled.current = true;
+  };
 
   return (
     <ErrorBoundary>
       <div
         ref={canvasRef}
-        style={{ width: "100%", height: "100%", outline: "none" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          outline: "none",
+          position: "relative",
+        }}
         tabIndex={0} // 키보드 포커스를 받을 수 있도록 설정
+        onFocus={(e) => e.stopPropagation()} // 포커스 이벤트 전파 방지
+        onClick={handleClick}
+        onTouchStart={handleClick}
       >
         <Canvas
           style={{ background: "linear-gradient(to bottom, #1e1e2f, #2d2d44)" }}
@@ -965,9 +1252,15 @@ export default function ThreeScene() {
           }}
           dpr={[0.7, 1]}
           frameloop="always"
+          onCreated={(state) => {
+            // Canvas 생성 시 초기화 로직
+            state.gl.setClearColor(new THREE.Color("#1e1e2f"));
+            state.gl.setPixelRatio(window.devicePixelRatio);
+          }}
         >
-          <Scene />
+          <Scene externalKeys={keys} />
         </Canvas>
+        {isMobile && <MobileControls setKeys={setKeys} />}
       </div>
     </ErrorBoundary>
   );
