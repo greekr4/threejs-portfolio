@@ -10,8 +10,8 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "3D 포트폴리오 | Three.js & Next.js",
-  description: "Three.js와 Next.js를 활용한 인터랙티브 3D 포트폴리오",
+  title: "김태균 포트폴리오",
+  description: "김태균의 포트폴리오",
 };
 
 export default function RootLayout({
